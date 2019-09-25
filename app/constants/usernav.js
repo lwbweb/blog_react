@@ -1,0 +1,1 @@
+export const USERNAV_UPDATE = 'USERNAV_UPDATE'
