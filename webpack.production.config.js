@@ -1,97 +1,111 @@
 var path = require("path")
 var webpack = require("webpack")
 var HtmlWebpackPlugin = require("html-webpack-plugin")
-var ExtractTextPlugin = require("extract-text-webpack-plugin")
+var MiniCssExtractPlugin = require("mini-css-extract-plugin")
+var OptimizeCssAssetsPlugin = require("optimize-css-assets-webpack-plugin")
+const UglifyjsWebpackPlugin = require("uglifyjs-webpack-plugin")
+const { CleanWebpackPlugin } = require("clean-webpack-plugin")
+
+var path = require("path")
+var ROOT_PATH = path.resolve(__dirname)
+var APP_PATH = path.resolve(ROOT_PATH, "app")
 
 module.exports = {
-    entry: {
-        app: path.resolve(__dirname, "app/index.jsx"),
-        // 将 第三方依赖 单独打包
-        vendor: [
-            "react",
-            "react-dom",
-            "react-redux",
-            "react-router",
-            "redux",
-            "es6-promise",
-            "whatwg-fetch",
-            "immutable"
-        ]
-    },
+    mode: "production",
+    entry: path.resolve(__dirname, "app/index.jsx"),
     output: {
         path: __dirname + "/build",
-        filename: "[name].[chunkhash:8].js",
-        publicPath: ""
+        filename: "bundle.js"
     },
 
     resolve: {
-        extensions: ["", ".js", ".jsx"]
+        extensions: [".*", ".js", ".jsx"]
     },
 
     module: {
-        loaders: [
+        rules: [
             {
-                test: /\.(js|jsx)$/,
-                exclude: /node_modules/,
-                loader: "babel"
+                test: /\.(css|less)?$/,
+                use: [
+                    {
+                        loader: MiniCssExtractPlugin.loader,
+                        options: {
+                            publicPath: "../"
+                            // hmr: process.env.NODE_ENV === "development"
+                        }
+                    },
+                    {
+                        loader: "css-loader"
+                    },
+                    {
+                        loader: "postcss-loader"
+                    },
+                    {
+                        loader: "less-loader"
+                    }
+                ]
             },
             {
-                test: /\.less$/,
-                exclude: /node_modules/,
-                loader: ExtractTextPlugin.extract("style", "css!postcss!less")
+                test: /\.(js|jsx)?$/,
+                use: {
+                    loader: "babel-loader",
+                    options: {
+                        presets: ["@babel/preset-env"]
+                    }
+                },
+                include: [APP_PATH]
             },
             {
-                test: /\.css$/,
-                exclude: /node_modules/,
-                loader: ExtractTextPlugin.extract("style", "css!postcss")
+                test: /\.woff(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=application/font-woff"],
+                include: [APP_PATH]
             },
             {
-                test: /\.(png|gif|jpg|jpeg|bmp)$/i,
-                loader:
-                    "url-loader?limit=5000&name=img/[name].[chunkhash:8].[ext]"
+                test: /\.woff2(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=application/font-woff"],
+                include: [APP_PATH]
             },
             {
-                test: /\.(woff|woff2|svg|ttf|eot)($|\?)/i,
-                loader:
-                    "url-loader?limit=5000&name=fonts/[name].[chunkhash:8].[ext]"
+                test: /\.ttf(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=application/octet-stream"],
+                include: [APP_PATH]
+            },
+            {
+                test: /\.eot(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["file-loader"],
+                include: [APP_PATH]
+            },
+            {
+                test: /\.svg(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=image/svg+xml"]
+            },
+            {
+                test: /\.(png|jpg|jpeg|gif)(\?v=\d+\.\d+\.\d+)?$/i,
+                use: ["url-loader?limit=200&name=[name].[hash:5].[ext]"],
+                include: [APP_PATH]
+            },
+            {
+                test: /\.(mp3|json)(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["file-loader"],
+                include: [APP_PATH]
             }
         ]
     },
-    postcss: [require("autoprefixer")],
 
     plugins: [
-        // webpack 内置的 banner-plugin
-        new webpack.BannerPlugin("Copyright by lwb"),
-
         // html 模板插件
         new HtmlWebpackPlugin({
             template: __dirname + "/app/index.html"
         }),
-
-        // 定义为生产环境，编译 React 时压缩到最小
-        new webpack.DefinePlugin({
-            "process.env": {
-                NODE_ENV: JSON.stringify(process.env.NODE_ENV)
-            }
+        new MiniCssExtractPlugin({
+            filename: "[name].[chunkHash:8].css",
+            chunkFilename: "[id].[chunkHash:8].css"
+            // ignoreOrder: false
         }),
-
-        // 为组件分配ID，通过这个插件webpack可以分析和优先考虑使用最多的模块，并为它们分配最小的ID
-        new webpack.optimize.OccurenceOrderPlugin(),
-
-        new webpack.optimize.UglifyJsPlugin({
-            compress: {
-                //supresses warnings, usually from module minification
-                warnings: false
-            }
-        }),
-
-        // 分离CSS和JS文件
-        new ExtractTextPlugin("[name].[contenthash:8].css"),
-
-        // 提供公共代码
-        new webpack.optimize.CommonsChunkPlugin({
-            name: "vendor",
-            filename: "[name].[contenthash:8].js"
+        new CleanWebpackPlugin(),
+        new OptimizeCssAssetsPlugin({
+            assetNameRegExp: /\.(css|less)$/g,
+            canPrint: true
         }),
 
         // 可在业务 js 代码中使用 __DEV__ 判断是否是dev模式（dev模式下可以提示错误、测试报告等, production模式不提示）
@@ -100,5 +114,111 @@ module.exports = {
                 JSON.parse(process.env.NODE_ENV == "dev" || "false")
             )
         })
-    ]
+    ],
+
+    devServer: {
+        proxy: {
+            // 凡是 `/api` 开头的 http 请求，都会被代理到 localhost:3000 上，由 koa 提供 mock 数据。
+            // koa 代码在 ./mock 目录中，启动命令为 npm run mock
+            "/api": {
+                target: "http://localhost:3000",
+                secure: false
+            }
+        },
+        // contentBase: "./public", //本地服务器所加载的页面所在的目录
+        // colors: true, //终端中输出结果为彩色
+        // historyApiFallback: true, //不跳转
+        inline: true, //实时刷新
+        hot: true // 使用热加载插件 HotModuleReplacementPlugin
+    },
+
+    optimization: {
+        minimizer: [
+            new UglifyjsWebpackPlugin({
+                cache: true,
+                parallel: true,
+                uglifyOptions: {
+                    // 最紧凑的输出
+                    beautify: false,
+                    // 删除所有的注释
+                    comments: false,
+                    compress: {
+                        // 在UglifyJs删除没有用到的代码时不输出警告
+                        //warnings: false,
+                        // 删除所有的 `console` 语句，可以兼容ie浏览器
+                        drop_console: true,
+                        // 内嵌定义了但是只用到一次的变量``
+                        collapse_vars: true,
+                        // 提取出出现多次但是没有定义成变量去引用的静态值
+                        reduce_vars: true
+                    },
+                    dead_code: true
+                }
+            })
+        ],
+        runtimeChunk: {
+            name: "single"
+        },
+        splitChunks: {
+            cacheGroups: {
+                styles: {
+                    name: "styles",
+                    test: /\.css$/,
+                    chunks: "all",
+                    enforce: true
+                }
+            },
+            chunks: "all",
+            minSize: 30000,
+            maxSize: 0,
+            minChunks: 1,
+            maxAsyncRequests: 5,
+            maxInitialRequests: 3,
+            automaticNameDelimiter: "~",
+            name: true,
+            cacheGroups: {
+                vendor: {
+                    test: /node_modules/,
+                    chunks: "all",
+                    priority: 10,
+                    enforce: true
+                },
+                libs: {
+                    test: /(react|react-dom|react-redux|react-router|redux|whatwg-fetch|immutable)/,
+                    chunks: "all",
+                    priority: 20,
+                    enforce: true
+                },
+                9: {
+                    test: /.*/,
+                    chunks: "async",
+                    minChunks: 9,
+                    priority: 99,
+                    enforce: true
+                },
+                5: {
+                    test: /.*/,
+                    chunks: "async",
+                    minChunks: 5,
+                    priority: 90,
+                    enforce: true
+                },
+                3: {
+                    test: /.*/,
+                    chunks: "async",
+                    minChunks: 3,
+                    priority: 80,
+                    enforce: true
+                },
+                2: {
+                    test: /.*/,
+                    chunks: "async",
+                    minChunks: 2,
+                    priority: 70,
+                    enforce: true
+                },
+                default: false
+            }
+        }
+    }
 }

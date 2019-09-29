@@ -1,13 +1,15 @@
 var path = require("path")
 var webpack = require("webpack")
 var HtmlWebpackPlugin = require("html-webpack-plugin")
-var ExtractTextPlugin = require("extract-text-webpack-plugin")
+var MiniCssExtractPlugin = require("mini-css-extract-plugin")
 var OpenBrowserPlugin = require("open-browser-webpack-plugin")
 
-// var nodeModulesPath = path.resolve(__dirname, 'node_modules')
-// console.log(process.env.NODE_ENV)
+var path = require("path")
+var ROOT_PATH = path.resolve(__dirname)
+var APP_PATH = path.resolve(ROOT_PATH, "app")
 
 module.exports = {
+    mode: "development",
     entry: path.resolve(__dirname, "app/index.jsx"),
     output: {
         path: __dirname + "/build",
@@ -15,42 +17,86 @@ module.exports = {
     },
 
     resolve: {
-        extensions: ["", ".js", ".jsx"]
+        extensions: [".*", ".js", ".jsx"]
     },
 
-    devtool: "cheap-module-eval-source-map",
-
     module: {
-        loaders: [
+        rules: [
             {
-                test: /\.(js|jsx)$/,
-                exclude: /node_modules/,
-                loader: "babel"
+                test: /\.(css|less)?$/,
+                use: [
+                    {
+                        loader: MiniCssExtractPlugin.loader,
+                        options: {
+                            publicPath: "../"
+                            // hmr: process.env.NODE_ENV === "development"
+                        }
+                    },
+                    {
+                        loader: "css-loader"
+                    },
+                    {
+                        loader: "postcss-loader"
+                    },
+                    {
+                        loader: "less-loader"
+                    }
+                ]
             },
             {
-                test: /\.less$/,
-                exclude: /node_modules/,
-                loader: "style!css!postcss!less"
+                test: /\.(js|jsx)?$/,
+                use: {
+                    loader: "babel-loader",
+                    options: {
+                        presets: ["@babel/preset-env"]
+                    }
+                },
+                include: [APP_PATH]
             },
             {
-                test: /\.css$/,
-                exclude: /node_modules/,
-                loader: "style!css!postcss"
+                test: /\.woff(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=application/font-woff"],
+                include: [APP_PATH]
             },
             {
-                test: /\.(jpg|gif|png|woff|woff2|svg|ttf|eot)($|\?)/i,
-                loader: "url-loader?limit=500"
-            } // 限制大小小于5k
+                test: /\.woff2(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=application/font-woff"],
+                include: [APP_PATH]
+            },
+            {
+                test: /\.ttf(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=application/octet-stream"],
+                include: [APP_PATH]
+            },
+            {
+                test: /\.eot(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["file-loader"],
+                include: [APP_PATH]
+            },
+            {
+                test: /\.svg(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["url-loader?limit=200&minetype=image/svg+xml"]
+            },
+            {
+                test: /\.(png|jpg|jpeg|gif)(\?v=\d+\.\d+\.\d+)?$/i,
+                use: ["url-loader?limit=200&name=[name].[hash:5].[ext]"],
+                include: [APP_PATH]
+            },
+            {
+                test: /\.(mp3|json)(\?v=\d+\.\d+\.\d+)?$/,
+                use: ["file-loader"],
+                include: [APP_PATH]
+            }
         ]
     },
 
-    eslint: {
-        configFile: ".eslintrc" // Rules for eslint
-    },
+    // eslint: {
+    //     configFile: ".eslintrc" // Rules for eslint
+    // },
 
-    postcss: [
-        require("autoprefixer") //调用autoprefixer插件，例如 display: flex
-    ],
+    // postcss: [
+    //     require("autoprefixer") //调用autoprefixer插件，例如 display: flex
+    // ],
 
     plugins: [
         // html 模板插件
@@ -64,6 +110,12 @@ module.exports = {
         // 打开浏览器
         new OpenBrowserPlugin({
             url: "http://localhost:8080"
+        }),
+
+        new MiniCssExtractPlugin({
+            filename: "[name].[chunkHash:8].css"
+            // chunkFilename: "[id].[chunkHash:8].css"
+            // ignoreOrder: false
         }),
 
         // 可在业务 js 代码中使用 __DEV__ 判断是否是dev模式（dev模式下可以提示错误、测试报告等, production模式不提示）
@@ -83,10 +135,23 @@ module.exports = {
                 secure: false
             }
         },
-        contentBase: "./public", //本地服务器所加载的页面所在的目录
-        colors: true, //终端中输出结果为彩色
-        historyApiFallback: true, //不跳转
+        // contentBase: "./public", //本地服务器所加载的页面所在的目录
+        // colors: true, //终端中输出结果为彩色
+        // historyApiFallback: true, //不跳转
         inline: true, //实时刷新
         hot: true // 使用热加载插件 HotModuleReplacementPlugin
+    },
+
+    optimization: {
+        splitChunks: {
+            cacheGroups: {
+                styles: {
+                    name: "styles",
+                    test: /\.css$/,
+                    chunks: "all",
+                    enforce: true
+                }
+            }
+        }
     }
 }
