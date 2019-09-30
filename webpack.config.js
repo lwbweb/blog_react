@@ -10,10 +10,9 @@ var APP_PATH = path.resolve(ROOT_PATH, "app")
 
 module.exports = {
     mode: "development",
-    entry: path.resolve(__dirname, "app/index.jsx"),
+    entry: { yoyoyo: path.resolve(__dirname, "app/index.jsx") },
     output: {
-        path: __dirname + "/build",
-        filename: "bundle.js"
+        path: __dirname + "/build"
     },
 
     resolve: {
@@ -45,12 +44,32 @@ module.exports = {
             },
             {
                 test: /\.(js|jsx)?$/,
-                use: {
-                    loader: "babel-loader",
-                    options: {
-                        presets: ["@babel/preset-env"]
+                use: [
+                    {
+                        loader: "babel-loader",
+                        options: {
+                            presets: ["@babel/preset-env"]
+                        }
                     }
-                },
+                ],
+                include: [APP_PATH]
+            },
+            // {
+            //     enforce: 'pre',
+            //     test: /\.js$/,
+            //     exclude: /node_modules/,
+            //     loader: 'eslint-loader',
+            //   },
+            {
+                test: /\.(js|jsx)?$/,
+                use: [
+                    {
+                        loader: "babel-loader",
+                        options: {
+                            presets: ["@babel/preset-env"]
+                        }
+                    }
+                ],
                 include: [APP_PATH]
             },
             {
@@ -113,8 +132,8 @@ module.exports = {
         }),
 
         new MiniCssExtractPlugin({
-            filename: "[name].[chunkHash:8].css"
-            // chunkFilename: "[id].[chunkHash:8].css"
+            filename: "[name].[chunkHash:8].css",
+            chunkFilename: "[id].[chunkHash:8].css"
             // ignoreOrder: false
         }),
 

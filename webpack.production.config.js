@@ -15,7 +15,8 @@ module.exports = {
     entry: path.resolve(__dirname, "app/index.jsx"),
     output: {
         path: __dirname + "/build",
-        filename: "bundle.js"
+        filename: "[name].[chunkHash:7].js",
+        chunkFilename: "[id].[chunkHash:7].js"
     },
 
     resolve: {
@@ -160,14 +161,6 @@ module.exports = {
             name: "single"
         },
         splitChunks: {
-            cacheGroups: {
-                styles: {
-                    name: "styles",
-                    test: /\.css$/,
-                    chunks: "all",
-                    enforce: true
-                }
-            },
             chunks: "all",
             minSize: 30000,
             maxSize: 0,
@@ -177,6 +170,12 @@ module.exports = {
             automaticNameDelimiter: "~",
             name: true,
             cacheGroups: {
+                styles: {
+                    name: "styles",
+                    test: /\.css$/,
+                    chunks: "all",
+                    enforce: true
+                },
                 vendor: {
                     test: /node_modules/,
                     chunks: "all",
